@@ -1,0 +1,65 @@
+public with sharing class MaintenanceRequestHelper {
+    
+    public static void updateWorkOrders(List<Case> TriggerCases) {
+    // Query Cases and related Equipment Maintenance Items in one go
+    Map<Id, Case> caseMap = new Map<Id, Case>([SELECT Id, Vehicle__c, Type, Status FROM Case WHERE Id IN :TriggerCases]);
+    List<Equipment_Maintenance_Item__c> emiList = [SELECT Equipment__r.Maintenance_Cycle__c, 
+                                                   Equipment__r.Id, 
+                                                   Maintenance_Request__r.Id 
+                                                   FROM Equipment_Maintenance_Item__c
+                                                   WHERE Maintenance_Request__r.Id IN :caseMap.keySet()
+                                                   ORDER BY Equipment__r.Maintenance_Cycle__c];
+
+    //get the maintenance cycle in the first element (the shortest) of the list of EMI.
+    Decimal shortestCycle = emiList.isEmpty() ? 0 : emiList[0].Equipment__r.Maintenance_Cycle__c;
+
+    List<Case> newCases = new List<Case>();
+    Integer j = 0;
+    for (Case c : TriggerCases) {
+        if ((c.Type == 'Repair' || c.Type == 'Routine Maintenance') && c.Status == 'Closed') {
+            newCases.add(new Case(Type = 'Routine Maintenance',
+                                  Subject = 'Routine Maintenance Checkup' + j,
+                                  Date_Reported__c = Date.today(),
+                                  Date_Due__c = Date.today() + Integer.valueOf(shortestCycle),
+                                  Vehicle__c = c.Vehicle__c));
+            j++;
+        }
+    }
+
+   /* if (!newCases.isEmpty()) {
+        try {
+            insert newCases;
+        } catch (DmlException e) {
+            // Handle DML exceptions
+            System.debug('Error inserting new cases: ' + e.getMessage());
+        }
+    }*/
+
+    // Map old case IDs to new case IDs
+    Map<Id, Id> oldToNewCaseMap = new Map<Id, Id>();
+    for (Integer i = 0; i < newCases.size(); i++) {
+        oldToNewCaseMap.put(TriggerCases[i].Id, newCases[i].Id);
+    }
+
+    // Clone EMIs to new cases
+    List<Equipment_Maintenance_Item__c> newEmis = new List<Equipment_Maintenance_Item__c>();
+    for (Equipment_Maintenance_Item__c emi : emiList) {
+        if (oldToNewCaseMap.containsKey(emi.Maintenance_Request__r.Id)) {
+            Equipment_Maintenance_Item__c newEmi = emi.clone(false, true, false, false);
+            newEmi.Maintenance_Request__c = oldToNewCaseMap.get(emi.Maintenance_Request__r.Id);
+            newEmis.add(newEmi);
+        }
+    }
+
+   /* if (!newEmis.isEmpty()) {
+        try {
+            insert newEmis;
+        } catch (DmlException e) {
+            // Handle DML exceptions
+            System.debug('Error inserting new EMIs: ' + e.getMessage());
+        }
+    }*/
+        
+    }        
+    
+}
