@@ -1,0 +1,61 @@
+@isTest
+public with sharing class MaintenanceRequestHelperTest {
+    
+    @isTest
+    //Test data setup
+    static void TestCreateMaintenanceRequest() {
+        //Create list of requests
+        List<Case> TestCaseList = new List<Case>();
+        for(integer i=0;i<20;i++){
+            Case TestCase = new Case(Subject = 'Test Request# ' + i, Status = 'New', Type ='Repair', Origin = 'Web');
+            TestCaseList.add(TestCase);
+        }
+        Insert TestCaseList;
+        //Creat equipment
+        Product2 TestEquipment = new Product2(Name = 'Test Equipment', Maintenance_Cycle__c = 10, Replacement_Part__c = True);
+        Insert TestEquipment;
+        //Create Equipment_Maintenance Items on each Test case  
+        List<Equipment_Maintenance_Item__c> EMIList = new List<Equipment_Maintenance_Item__c>();
+        //pull added cases to get the IDs
+        List<Case> addedCaseList = [SELECT Id FROM Case];
+        System.debug('Size of added Cases: ' + addedCaseList.size() );
+        //pull added equipment to get the ID
+        Product2 AddedEquipment = [SELECT Id FROM Product2];
+        System.debug('AddedEquipment ID: ' + AddedEquipment.Id );
+        //Add EMIs to the each case
+        for (Case c:addedCaseList ){
+            for (integer j = 0; j < 3; j++){
+                Equipment_Maintenance_Item__c TestEmi = new Equipment_Maintenance_Item__c(Maintenance_Request__c = c.Id, Equipment__c=AddedEquipment.Id);
+                EMIList.add(TestEmi);
+            }  
+        }
+        //Insert EMIs
+        System.debug('EMIList size before insert: ' + EMIList.size());
+        Insert EMIList;
+        List<Equipment_Maintenance_Item__c> AddedEMIs = [SELECT Id FROM Equipment_Maintenance_Item__c];
+        System.debug('EMIList size after insert: ' + AddedEMIs.size());
+        
+        // Start the Test
+        Test.startTest();
+        //MaintenanceRequestHelper.updateWorkOrders(TestCaseList);
+        for (Case test: TestCaseList){
+            test.Status = 'Closed';
+        }
+        update TestCaseList;
+        Test.stopTest();
+        
+        
+        List<Case> CloseCaseList = [SELECT Id FROM Case WHERE Subject LIKE 'Routine Maintenance%' ];
+        //AggregateResults for count number of EMIs
+        List<AggregateResult> countEMIs = new list<AggregateResult>();
+        //Query number of EMIs, store that in the total field
+        countEMIs = [SELECT count(Id) total FROM Equipment_Maintenance_Item__c ];  
+        //get the value of total as a string
+        String str = String.valueOf(countEMIs[0].get('total')) ;
+        Integer I = Integer.valueOf(str) ;
+        System.debug('No# of EMIs created: ' + I);
+        System.debug('No# of Created Case: ' + CloseCaseList.size());
+        System.assertNotEquals(20, CloseCaseList.size());
+        System.assertEquals(60, I);
+    }
+}

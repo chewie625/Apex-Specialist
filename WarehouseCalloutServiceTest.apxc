@@ -1,0 +1,22 @@
+@IsTest
+private class WarehouseCalloutServiceTest {
+    // Set mock callout class
+    @isTest static void testGetCallout(){
+        Test.setMock(HttpCalloutMock.class, new WarehouseCalloutServiceMock());
+        // Create an instance of WarehouseCalloutService
+        WarehouseCalloutService service = new WarehouseCalloutService();
+        // Execute the method
+        service.execute(null); 
+        // Assuming you have a method to get the response for testing
+        HttpResponse response = service.getResponse();
+        // Verify that the response received contains fake values
+        String contentType = response.getHeader('Content-Type');
+        Assert.isTrue(contentType == 'application/json');
+        String actualValue = response.getBody();
+        System.debug(response.getBody());
+        String expectedValue ='[{"_id":"55d66226726b611100aaf741","replacement":false,"quantity":5,"name":"Generator 1000 kW","maintenanceperiod":365,"lifespan":120,"cost":5000,"sku":"100003"}]';
+        Assert.areEqual(expectedValue, actualValue);
+        Assert.areEqual(200, response.getStatusCode());  
+    }
+    
+}

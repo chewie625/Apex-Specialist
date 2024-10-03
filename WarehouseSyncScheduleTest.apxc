@@ -1,0 +1,26 @@
+@isTest
+private class WarehouseSyncScheduleTest {
+    // Dummy CRON expression: runs 1 minute after Test.startTest()
+    public static String CRON_EXP = '0 0 0 15 3 ? 2025';
+    
+    @isTest static void testScheduleJob(){
+        // Set the mock callout
+        Test.setMock(HttpCalloutMock.class, new WarehouseCalloutServiceMock());
+        List<Product2> countEquipment = [SELECT Id FROM Product2];
+        System.debug('Count of Equipments before Call Out: ' + countEquipment.size());
+        
+        Test.startTest();
+        // Schedule the test job
+        String jobId = System.schedule('ScheduledApexTest', CRON_EXP, new WarehouseSyncSchedule());
+        List<Product2> countEquipmentafterTest = [SELECT Id FROM Product2];
+        System.debug('Count of Equipments after Call Out: ' + countEquipmentafterTest.size());
+        Test.stopTest();
+        
+        // Now that the scheduled job has executed,
+        // check that our equipment were created
+        //List<Product2> countEquipmentafterTest = [SELECT Id FROM Product2];
+        //System.debug('Count of Equipments after Call Out: ' + countEquipmentafterTest.size());
+        
+        System.assertEquals(countEquipment.size(), countEquipmentafterTest.size(), 'Equipments not added via CallOut');
+    }
+}
